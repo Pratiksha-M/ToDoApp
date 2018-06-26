@@ -1,40 +1,62 @@
-const mongoose = require('mongoose');
+const express = require('express');
+const bodyParser = require('body-parser');
+const {ObjectID} = require('mongodb');
 
-mongoose.Promise = global.Promise;
-mongoose.connect('mongodb://localhost:27017/ToDoList');
+var {mongoose} = require('./db/mongoose');
+var {Todo} = require('./models/todo');
 
-var Todo = mongoose.model('Todo', {
-	text: {
-		type: String,
-		required: true,
-		minlength: 1,
-		trim: true
-	},
-	completed: {
-		type: Boolean, 
-		default: false
-	},
-	completedAt: {
-		type: Number,
-		default: null
+var port = process.env.PORT || 3000;
+
+var app = express();
+
+app.use(bodyParser.json());
+
+
+app.post('/todos', (request, response) => {
+	var newtodo = new Todo({
+		text: request.body.text,
+		completed: request.body.completed,
+		completedAt: request.body.completedAt
+	});
+
+	newtodo.save().then((doc) => {
+		response.send(doc)
+	}, (error) => {
+		response.status(400).send(error);
+	});
+});
+
+
+app.get('/todos', (request, response) => {
+	Todo.find().then((docs) => {
+		response.send({docs})
+	}, (err) => {
+		response.status(400).send(err)
+	});
+});
+
+
+app.get('/todos/:id', (request, response) => {
+	const id = request.params.id;
+	if(!ObjectID.isValid(id)){
+		return response.status(404).send();
 	}
+
+	Todo.findById(id).then((todo) => {
+		if(!todo){
+			return response.status(404).send();
+		}
+		response.send({todo});
+	}).catch((e) => response.status(400).send(e))
 });
 
-// var newToDo = new Todo ({
-// 	text: "Pratiksha"
-// });
 
-// newToDo.save().then((doc) => {
-// 	console.log('Saved Todo', doc);
-// }, (err) => {
-// 	console.log('Unable to save todo');
-// });
-
-var another = new Todo({
-	text: "Chinu",
-	completed: true,
-	completedAt: 1234
+app.listen(port, () => {
+	console.log(`Server is up on port ${port}`);
 });
 
-another.save().then((doc) => console.log('Saved todo', doc),
-	(err) => console.log('Unable to save todo', err));
+module.exports = {app};
+
+
+
+
